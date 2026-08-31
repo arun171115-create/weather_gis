@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Real-Time Weather & Wind Monitoring GIS</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+        .weather-dashboard {
+    display: flex;
+    gap: 20px;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+.weather-card {
+    padding: 20px;
+    border-radius: 15px;
+    min-width: 180px;
+    flex: 1;
+    text-align: center;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s;
+}
+
+.weather-card:hover {
+    transform: translateY(-5px);
+}
+
+.weather-card h3 {
+    margin: 5px 0 10px;
+    font-size: 18px;
+}
+
+.weather-card p {
+    font-size: 25px;
+    font-weight: bold;
+    margin: 5px;
+}
+
+#searchBox {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+    max-width: 500px;
+}
+
+#locationInput {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+#searchBox button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+    </style>
+</head>
+
+<body>
+
+    <h1>Real-Time Weather & Wind Monitoring GIS</h1>
+
+    <h2 id="locationTitle">Erode Weather</h2>
+
+    <div class="weather-dashboard">
+
+    <div class="weather-card">
+        <h3>🌡️ Temperature</h3>
+        <p id="temperatureCard">Loading...</p>
+    </div>
+
+    <div class="weather-card">
+        <h3>🌬️ Wind Speed</h3>
+        <p id="windSpeedCard">Loading...</p>
+    </div>
+
+    <div class="weather-card">
+        <h3>🧭 Wind Direction</h3>
+        <p id="windDirectionCard">Loading...</p>
+    </div>
+
+    <div class="weather-card">
+        <h3>🌧️ Rain</h3>
+        <p id="rainCard">Loading...</p>
+    </div>
+
+</div>
+
+    <p>Temperature:
+        <span id="temperature">Loading...</span>
+    </p>
+
+    <p>Wind Speed:
+        <span id="windSpeed">Loading...</span>
+    </p>
+
+    <p>Wind Direction:
+        <span id="windDirection">Loading...</span>
+    </p>
+
+    <p>Rain:
+        <span id="rain">Loading...</span>
+    </p>
+
+   <div id="searchBox">
+    <input type="text" id="locationInput" placeholder="Enter location">
+    <button onclick="searchLocation()">🔍 Search</button>
+</div>
+
+<div id="map"></div>
+
+<h2>📊 Weather Monitoring Chart</h2>
+
+<canvas id="weatherChart"></canvas>
+
+<h2>🌦️ 7 Days Weather Forecast</h2>
+
+<div id="forecast"></div>
+
+
+    <!-- Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+
+        // Erode coordinates
+        const latitude = 11.34;
+        const longitude = 77.72;
+
+
+        // Create map
+        const map = L.map('map').setView([latitude, longitude], 10);
+
+
+        // OpenStreetMap layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Satellite Map
+const satelliteLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {
+        attribution: 'Tiles &copy; Esri'
+    }
+);
+
+// Layer Control
+const baseMaps = {
+    "🗺️ Normal Map": L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+            attribution: '&copy; OpenStreetMap contributors'
+        }
+    ),
+    "🛰️ Satellite": satelliteLayer
+};
+
+L.control.layers(baseMaps).addTo(map);
+
+
+        // Weather API
+const apiUrl =
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation`;
+
+
+        // Get weather data
+        fetch(apiUrl)
+            .then(response => response.json())
+
+            .then(data => {
+                createWeatherChart(data);
+
+               
+
+                // Temperature
+                document.getElementById("temperature").textContent =
+                    data.current.temperature_2m + " °C";
+
+                    document.getElementById("temperatureCard").textContent =
+    data.current.temperature_2m + " °C";
+
+document.getElementById("windSpeedCard").textContent =
+    data.current.wind_speed_10m + " km/h";
+
+document.getElementById("windDirectionCard").textContent =
+    data.current.wind_direction_10m + "°";
+
+document.getElementById("rainCard").textContent =
+    data.current.precipitation + " mm";
+
+
+                // Wind Speed
+                document.getElementById("windSpeed").textContent =
+                    data.current.wind_speed_10m + " km/h";
+
+
+                // Wind Direction
+                document.getElementById("windDirection").textContent =
+                    data.current.wind_direction_10m + "°";
+                    const windDirection = data.current.wind_direction_10m;
+                    document.getElementById("rain").textContent =
+                      data.current.precipitation + " mm";
+                      const rain = data.current.precipitation;
+
+let rainColor;
+
+if (rain === 0) {
+    rainColor = "gray";
+} else if (rain <= 2) {
+    rainColor = "blue";
+} else if (rain <= 5) {
+    rainColor = "purple";
+} else {
+    rainColor = "red";
+}
+
+L.circle([latitude, longitude], {
+    radius: 10000,
+    color: rainColor,
+    fillColor: rainColor,
+    fillOpacity: 0.4,
+    weight: 2
+}).addTo(map)
+  .bindPopup(`🌧️ Rain: ${rain} mm`);
+
+const windIcon = L.divIcon({
+    className: "wind-arrow",
+    html: `<div style="font-size:40px; transform: rotate(${windDirection}deg);">↑</div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
+});
+
+L.marker([latitude, longitude], {
+    icon: windIcon
+}).addTo(map);
+
+// Temperature Layer
+const temperature = data.current.temperature_2m;
+
+let temperatureColor;
+
+if (temperature < 25) {
+    temperatureColor = "blue";
+} else if (temperature < 30) {
+    temperatureColor = "orange";
+} else {
+    temperatureColor = "red";
+}
+
+L.circle([latitude, longitude], {
+    radius: 5000,
+    color: temperatureColor,
+    fillColor: temperatureColor,
+    fillOpacity: 0.25,
+    weight: 2
+}).addTo(map)
+  .bindPopup(`🌡️ Temperature: ${temperature} °C`);
+
+
+                // Map marker
+                L.marker([latitude, longitude])
+                    .addTo(map)
+
+                    .bindPopup(`
+                        <b>Erode Weather</b><br><br>
+                        🌡️ Temperature:
+                        ${data.current.temperature_2m} °C
+                        <br>
+                        🌬️ Wind Speed:
+                        ${data.current.wind_speed_10m} km/h
+                        <br>
+                        🧭 Wind Direction:
+                        ${data.current.wind_direction_10m}°
+                    `)
+
+                    .openPopup();
+
+            })
+             
+            
+          
+            .catch(error => {
+                console.log("Error:", error);
+            });
+            
+             // Rain Layer Control
+const rainControl = L.control({ position: "topright" });
+
+rainControl.onAdd = function(map) {
+
+    const div = L.DomUtil.create("div");
+
+    div.innerHTML = `
+        <button onclick="
+            if (map.hasLayer(rainLayer)) {
+                map.removeLayer(rainLayer);
+                this.innerHTML = '🌧️ Rain OFF';
+            } else {
+                map.addLayer(rainLayer);
+                this.innerHTML = '🌧️ Rain ON';
+            }
+        ">
+            🌧️ Rain ON
+        </button>
+    `;
+
+    div.style.background = "white";
+    div.style.padding = "5px";
+
+    return div;
+};
+
+rainControl.addTo(map);
+
+// Rain Grid Layer
+const rainLayer = L.layerGroup().addTo(map);
+
+function showRainGrid(centerLat, centerLon) {
+
+    // பழைய rain circles-ஐ remove பண்ணும்
+    rainLayer.clearLayers();
+
+    const rainLocations = [
+        [centerLat + 0.10, centerLon - 0.10],
+        [centerLat + 0.10, centerLon],
+        [centerLat + 0.10, centerLon + 0.10],
+
+        [centerLat, centerLon - 0.10],
+        [centerLat, centerLon],
+        [centerLat, centerLon + 0.10],
+
+        [centerLat - 0.10, centerLon - 0.10],
+        [centerLat - 0.10, centerLon],
+        [centerLat - 0.10, centerLon + 0.10]
+    ];
+
+    rainLocations.forEach(location => {
+
+        const rainAPI =
+            `https://api.open-meteo.com/v1/forecast?latitude=${location[0]}&longitude=${location[1]}&current=precipitation`;
+
+        fetch(rainAPI)
+            .then(response => response.json())
+            .then(weather => {
+
+                const rain = weather.current.precipitation;
+
+                let color = "gray";
+
+                if (rain > 0 && rain <= 2) {
+                    color = "blue";
+                } else if (rain > 2 && rain <= 5) {
+                    color = "purple";
+                } else if (rain > 5) {
+                    color = "red";
+                }
+
+                L.circle(location, {
+                    radius: 4000,
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.35,
+                    weight: 1
+                })
+                .addTo(rainLayer)
+                .bindPopup(`🌧️ Rain: ${rain} mm`);
+
+            });
+
+    });
+}
+
+// 🌬️ Wind Arrow Layer
+const windLayer = L.layerGroup().addTo(map);
+
+// 🌬️ Wind ON/OFF Control
+const windControl = L.control({ position: "topright" });
+
+windControl.onAdd = function(map) {
+
+    const div = L.DomUtil.create("div");
+
+    div.innerHTML = `
+        <button onclick="
+            if (map.hasLayer(windLayer)) {
+                map.removeLayer(windLayer);
+                this.innerHTML = '🌬️ Wind OFF';
+            } else {
+                map.addLayer(windLayer);
+                this.innerHTML = '🌬️ Wind ON';
+            }
+        ">
+            🌬️ Wind ON
+        </button>
+    `;
+
+    div.style.background = "white";
+    div.style.padding = "5px";
+
+    return div;
+};
+
+windControl.addTo(map);
+
+function showWindGrid(centerLat, centerLon) {
+
+    windLayer.clearLayers();
+
+    const windLocations = [
+        [centerLat + 0.10, centerLon - 0.10],
+        [centerLat + 0.10, centerLon],
+        [centerLat + 0.10, centerLon + 0.10],
+
+        [centerLat, centerLon - 0.10],
+        [centerLat, centerLon],
+        [centerLat, centerLon + 0.10],
+
+        [centerLat - 0.10, centerLon - 0.10],
+        [centerLat - 0.10, centerLon],
+        [centerLat - 0.10, centerLon + 0.10]
+    ];
+
+    windLocations.forEach(location => {
+
+        const windAPI =
+            `https://api.open-meteo.com/v1/forecast?latitude=${location[0]}&longitude=${location[1]}&current=wind_speed_10m,wind_direction_10m`;
+
+        fetch(windAPI)
+            .then(response => response.json())
+            .then(weather => {
+
+                const speed = weather.current.wind_speed_10m;
+                const direction = weather.current.wind_direction_10m;
+
+                const windIcon = L.divIcon({
+                    className: "wind-arrow",
+                    html: `
+                        <div style="
+                            font-size:30px;
+                            transform: rotate(${direction}deg);
+                        ">↑</div>
+                    `,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+
+                L.marker(location, {
+                    icon: windIcon
+                })
+                .addTo(windLayer)
+                .bindPopup(`
+                    🌬️ Wind Speed: ${speed} km/h<br>
+                    🧭 Direction: ${direction}°
+                `);
+
+            });
+
+    });
+}
+
+// Initially show Erode wind grid
+showWindGrid(latitude, longitude);
+
+// Initially show Erode rain grid
+showRainGrid(latitude, longitude);
+
+// Rain Legend
+const legend = L.control({ position: "bottomright" });
+
+legend.onAdd = function(map) {
+
+    const div = L.DomUtil.create("div", "info legend");
+
+    div.innerHTML = `
+        <b>🌧️ Rain Intensity</b><br>
+        <span style="color:gray;">●</span> 0 mm - No Rain<br>
+        <span style="color:blue;">●</span> 0–2 mm - Light<br>
+        <span style="color:purple;">●</span> 2–5 mm - Moderate<br>
+        <span style="color:red;">●</span> >5 mm - Heavy
+    `;
+
+    div.style.background = "white";
+    div.style.padding = "10px";
+    div.style.lineHeight = "20px";
+
+    return div;
+};
+
+legend.addTo(map);
+
+
+// Location Search + Live Weather
+function searchLocation() {
+
+    const locationName =
+        document.getElementById("locationInput").value.trim();
+
+    if (locationName === "") {
+        alert("Location enter pannunga");
+        return;
+    }
+
+    const searchURL =
+        "https://nominatim.openstreetmap.org/search?format=json&q=" +
+        encodeURIComponent(locationName);
+
+    fetch(searchURL)
+        .then(response => response.json())
+        .then(results => {
+
+            if (results.length === 0) {
+                alert("Location not found");
+                return;
+            }
+
+            const lat = parseFloat(results[0].lat);
+            const lon = parseFloat(results[0].lon);
+
+            // Move map to searched location
+            map.setView([lat, lon], 12);
+
+            showRainGrid(lat, lon);
+showWindGrid(lat, lon);
+
+document.getElementById("locationTitle").textContent =
+    locationName + " Weather";
+
+            showRainGrid(lat, lon);
+
+            // Add marker
+            L.marker([lat, lon])
+                .addTo(map)
+                .bindPopup("📍 " + locationName)
+                .openPopup();
+
+            // Weather API
+            const weatherURL =
+                `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation`;
+
+            return fetch(weatherURL);
+        })
+        .then(response => response.json())
+        .then(data => {
+            createWeatherChart(data);
+
+            // Update cards
+            document.getElementById("temperatureCard").textContent =
+                data.current.temperature_2m + " °C";
+
+            document.getElementById("windSpeedCard").textContent =
+                data.current.wind_speed_10m + " km/h";
+
+            document.getElementById("windDirectionCard").textContent =
+                data.current.wind_direction_10m + "°";
+
+            document.getElementById("rainCard").textContent =
+                data.current.precipitation + " mm";
+
+        
+
+            // Update normal weather values
+document.getElementById("temperature").textContent =
+    data.current.temperature_2m + " °C";
+
+document.getElementById("windSpeed").textContent =
+    data.current.wind_speed_10m + " km/h";
+
+document.getElementById("windDirection").textContent =
+    data.current.wind_direction_10m + "°";
+
+document.getElementById("rain").textContent =
+    data.current.precipitation + " mm";    
+
+        })
+        .catch(error => {
+            console.log("Error:", error);
+            alert("Weather data load aagala");
+        });
+}      
+
+    
+
+
+// Auto Refresh - Every 5 Minutes
+setInterval(function() {
+    location.reload();
+}, 5 * 60 * 1000);
+
+
+// Weather Chart
+let weatherChart;
+
+function createWeatherChart(data) {
+
+    const ctx = document.getElementById("weatherChart");
+
+    if (weatherChart) {
+        weatherChart.destroy();
+    }
+
+    weatherChart = new Chart(ctx, {
+        type: "bar",
+
+        data: {
+            labels: [
+                "Temperature",
+                "Wind Speed",
+                "Rain"
+            ],
+
+            datasets: [{
+                label: "Current Weather",
+
+                data: [
+                    data.current.temperature_2m,
+                    data.current.wind_speed_10m,
+                    data.current.precipitation
+                ]
+            }]
+        },
+
+        options: {
+            responsive: true,
+
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+  // 7 Days Weather Forecast
+function showForecast(latitude, longitude) {
+
+    const forecastURL =
+        `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&timezone=auto`;
+
+    fetch(forecastURL)
+        .then(response => response.json())
+        .then(data => {
+
+            const forecastDiv =
+                document.getElementById("forecast");
+
+            forecastDiv.innerHTML = "";
+
+            for (let i = 0; i < 7; i++) {
+
+                forecastDiv.innerHTML += `
+                    <div class="weather-card">
+                        <h3>📅 ${data.daily.time[i]}</h3>
+
+                        <p>🌡️ Max:
+                            ${data.daily.temperature_2m_max[i]} °C
+                        </p>
+
+                        <p>🌡️ Min:
+                            ${data.daily.temperature_2m_min[i]} °C
+                        </p>
+
+                        <p>🌧️ Rain:
+                            ${data.daily.precipitation_sum[i]} mm
+                        </p>
+
+                        <p>🌬️ Wind:
+                            ${data.daily.wind_speed_10m_max[i]} km/h
+                        </p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.log("Forecast Error:", error);
+        });
+}
+
+// Show Erode 7-day forecast
+showForecast(latitude, longitude);
+
+    </script>
+
+</body>
+
+</html>>
