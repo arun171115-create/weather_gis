@@ -9,17 +9,205 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        #map {
-            height: 500px;
-            width: 100%;
-        }
+       #map {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+        z-index: 1;
+       }
+       
+       .wind-legend {
+    position: fixed;
+    right: 20px;
+    bottom: 85px;
+    background: white;
+    padding: 10px 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 1000;
+    font-size: 13px;
+    line-height: 22px;
+}
+
+.wind-legend-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+       .wind-arrow {
+    background: transparent !important;
+    border: none !important;
+}
+
+.wind-arrow div {
+    font-size: 28px;
+    font-weight: bold;
+    text-shadow: 0 1px 3px white;
+}
+
+       .wind-gradient {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 400;
+
+    background:
+        radial-gradient(
+            circle at 25% 35%,
+            rgba(40, 200, 70, 0.35),
+            rgba(40, 200, 180, 0.20),
+            transparent 60%
+        ),
+        radial-gradient(
+            circle at 75% 45%,
+            rgba(255, 220, 40, 0.30),
+            rgba(255, 120, 40, 0.20),
+            transparent 55%
+        );
+}
+
+       .top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 20px;
+    box-sizing: border-box;
+
+    background: white;
+    z-index: 1000;
+}
+
+.logo {
+    font-size: 22px;
+}
+
+.top-search {
+    display: flex;
+    width: 400px;
+}
+
+.top-search input {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #1688ff;
+    font-size: 15px;
+}
+
+.top-search button {
+    padding: 12px 18px;
+    border: none;
+    background: #1688ff;
+    color: white;
+    cursor: pointer;
+}
+
+.menu-btn {
+    background: #1688ff;
+    color: white;
+    border: none;
+    padding: 10px 14px;
+    font-size: 20px;
+    border-radius: 8px;
+}       
+ 
+
         .weather-dashboard {
     display: flex;
     gap: 20px;
     margin: 20px 0;
     flex-wrap: wrap;
+}   
+    #forecast {
+    position: fixed;
+    bottom: 65px;
+    left: 50%;
+    transform: translateX(-50%);
+
+    width: 100%;
+    max-width: 900px;
+
+    display: flex;
+    gap: 10px;
+
+    overflow-x: auto;
+    padding: 10px;
+
+    background: white;
+    z-index: 999;
+
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.15);
+}
+    
+}
+#bottomForecastBar {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    width: 100%;
+    max-width: 900px;
+    height: 65px;
+    transform: translateX(-50%);
+
+    display: flex;
+    align-items: stretch;
+
+    background: white;
+    border-top: 1px solid #ccc;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.15);
+
+    z-index: 1000;
 }
 
+.forecast-label {
+    width: 55px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e8eef3;
+    font-size: 20px;
+}
+
+.forecast-day {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-right: 1px solid #ccc;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.forecast-day.active {
+    background: #dceeff;
+}
+
+#forecast .weather-card {
+    min-width: 140px;
+    flex: 0 0 140px;
+    padding: 10px;
+}
+
+#forecast .weather-card p {
+    font-size: 15px;
+}
+
+#forecast .weather-card h3 {
+    font-size: 15px;
+}
 .weather-card {
     padding: 20px;
     border-radius: 15px;
@@ -74,6 +262,23 @@
 
 <body>
 
+    <body>
+
+<div class="top-bar">
+
+    <div class="logo">
+        🌐 <b>WEATHER GIS</b>
+    </div>
+
+    <div class="top-search">
+    <input type="text" id="locationInput" placeholder="Enter location">
+    <button onclick="searchLocation()">🔍</button>
+</div>
+
+    <button class="menu-btn">☰</button>
+
+</div>
+
     <h1>Real-Time Weather & Wind Monitoring GIS</h1>
 
     <h2 id="locationTitle">Erode Weather</h2>
@@ -118,12 +323,17 @@
         <span id="rain">Loading...</span>
     </p>
 
-   <div id="searchBox">
-    <input type="text" id="locationInput" placeholder="Enter location">
-    <button onclick="searchLocation()">🔍 Search</button>
-</div>
+  
 
 <div id="map"></div>
+
+<div class="wind-legend">
+    <div class="wind-legend-title">🌬️ Wind Speed</div>
+    <div>🟢 0–5 km/h</div>
+    <div>🟡 10–15 km/h</div>
+    <div>🟠 15–20 km/h</div>
+    <div>🔴 20+ km/h</div>
+</div>
 
 <h2>📊 Weather Monitoring Chart</h2>
 
@@ -132,6 +342,30 @@
 <h2>🌦️ 7 Days Weather Forecast</h2>
 
 <div id="forecast"></div>
+
+<div id="bottomForecastBar">
+    <div class="forecast-label">▶</div>
+
+    <div class="forecast-day active">
+        Today
+    </div>
+
+    <div class="forecast-day">
+        Tomorrow
+    </div>
+
+    <div class="forecast-day">
+        Next Day
+    </div>
+
+    <div class="forecast-day">
+        Next 2 Days
+    </div>
+
+    <div class="forecast-day">
+        Next 3 Days
+    </div>
+</div>
 
 
     <!-- Leaflet JavaScript -->
@@ -146,6 +380,9 @@
 
         // Create map
         const map = L.map('map').setView([latitude, longitude], 10);
+
+        const windGradient = L.DomUtil.create("div", "wind-gradient");
+map.getContainer().appendChild(windGradient);
 
 
         // OpenStreetMap layer
@@ -288,6 +525,9 @@ L.circle([latitude, longitude], {
                         <br>
                         🧭 Wind Direction:
                         ${data.current.wind_direction_10m}°
+                        <br>
+🌧️ Rain:
+${data.current.precipitation} mm
                     `)
 
                     .openPopup();
@@ -334,7 +574,7 @@ const rainLayer = L.layerGroup().addTo(map);
 
 function showRainGrid(centerLat, centerLon) {
 
-    // பழைய rain circles-ஐ remove பண்ணும்
+  
     rainLayer.clearLayers();
 
     const rainLocations = [
@@ -383,11 +623,11 @@ function showRainGrid(centerLat, centerLon) {
                 .bindPopup(`🌧️ Rain: ${rain} mm`);
 
             });
-
-    });
+        });
+        
 }
 
-// 🌬️ Wind Arrow Layer
+// 🌬️ Wind Layer
 const windLayer = L.layerGroup().addTo(map);
 
 // 🌬️ Wind ON/OFF Control
@@ -419,6 +659,8 @@ windControl.onAdd = function(map) {
 
 windControl.addTo(map);
 
+
+// 🌬️ Show Wind Grid
 function showWindGrid(centerLat, centerLon) {
 
     windLayer.clearLayers();
@@ -449,11 +691,37 @@ function showWindGrid(centerLat, centerLon) {
                 const speed = weather.current.wind_speed_10m;
                 const direction = weather.current.wind_direction_10m;
 
+                let color = "green";
+
+                if (speed >= 5 && speed < 10) {
+                    color = "lime";
+                } else if (speed >= 10 && speed < 15) {
+                    color = "yellow";
+                } else if (speed >= 15 && speed < 20) {
+                    color = "orange";
+                } else if (speed >= 20) {
+                    color = "red";
+                }
+
+                L.circle(location, {
+                    radius: 6000,
+                    color: color,
+                    fillColor: color,
+                    fillOpacity: 0.30,
+                    weight: 1
+                })
+                .addTo(windLayer)
+                .bindPopup(`
+                    🌬️ Wind Speed: ${speed} km/h<br>
+                    🧭 Direction: ${direction}°
+                `);
+
                 const windIcon = L.divIcon({
                     className: "wind-arrow",
                     html: `
                         <div style="
-                            font-size:30px;
+                            font-size:26px;
+                            color:black;
                             transform: rotate(${direction}deg);
                         ">↑</div>
                     `,
@@ -463,17 +731,20 @@ function showWindGrid(centerLat, centerLon) {
 
                 L.marker(location, {
                     icon: windIcon
-                })
-                .addTo(windLayer)
-                .bindPopup(`
-                    🌬️ Wind Speed: ${speed} km/h<br>
-                    🧭 Direction: ${direction}°
-                `);
+                }).addTo(windLayer);
 
+            })
+            .catch(error => {
+                console.log("Wind data error:", error);
             });
 
     });
 }
+
+
+
+
+
 
 // Initially show Erode wind grid
 showWindGrid(latitude, longitude);
@@ -538,6 +809,25 @@ function searchLocation() {
 
             showRainGrid(lat, lon);
 showWindGrid(lat, lon);
+
+const searchedWeatherAPI =
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation`;
+
+fetch(searchedWeatherAPI)
+    .then(response => response.json())
+    .then(weather => {
+
+        L.marker([lat, lon])
+            .addTo(map)
+            .bindPopup(`
+                <b>${locationName} Weather</b><br><br>
+                🌡️ Temperature: ${weather.current.temperature_2m} °C<br>
+                🌬️ Wind Speed: ${weather.current.wind_speed_10m} km/h<br>
+                🧭 Wind Direction: ${weather.current.wind_direction_10m}°<br>
+                🌧️ Rain: ${weather.current.precipitation} mm
+            `)
+            .openPopup();
+    });
 
 document.getElementById("locationTitle").textContent =
     locationName + " Weather";
