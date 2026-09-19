@@ -31,6 +31,37 @@
     line-height: 22px;
 }
 
+ .wind-scale {
+    position: fixed;
+    top: 75px;
+    left: 50%;
+    transform: translateX(-50%);
+
+    width: 300px;
+    height: 30px;
+
+    background: linear-gradient(
+        to right,
+        #2d5f8b,
+        #39b54a,
+        #f1d53a,
+        #f28c28,
+        #d94b4b,
+        #8e4585
+    );
+
+    border-radius: 6px;
+    z-index: 1100;
+
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+}
+
 .wind-legend-title {
     font-weight: bold;
     margin-bottom: 5px;
@@ -278,6 +309,51 @@
     font-size: 16px;
 }
 
+  .hourly-forecast {
+    position: fixed;
+    left: 0;
+    bottom: 65px;
+    width: 100%;
+    height: 220px;
+    background: white;
+    z-index: 1200;
+    overflow-x: auto;
+    overflow-y: hidden;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.18);
+}
+
+.hourly-forecast h2 {
+    margin: 0;
+    padding: 8px;
+    text-align: left;
+    font-size: 18px;
+}
+
+.hourly-table {
+    border-collapse: collapse;
+    min-width: 1200px;
+    width: max-content;
+    font-size: 13px;
+}
+
+.hourly-table th,
+.hourly-table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+    text-align: center;
+    min-width: 45px;
+    white-space: nowrap;
+}
+
+.hourly-table th:first-child,
+.hourly-table td:first-child {
+    position: sticky;
+    left: 0;
+    background: white;
+    z-index: 5;
+    min-width: 70px;
+}
+
     </style>
 </head>
 
@@ -348,7 +424,14 @@
 
 <div id="map"></div>
 
-
+<div class="wind-scale">
+    <span>0</span>
+    <span>5</span>
+    <span>10</span>
+    <span>15</span>
+    <span>20</span>
+    <span>25+</span>
+</div>
 
 <h2>📊 Weather Monitoring Chart</h2>
 
@@ -357,6 +440,16 @@
 <h2>🌦️ 7 Days Weather Forecast</h2>
 
 <div id="forecast"></div>
+
+<div id="hourlyForecast" class="hourly-forecast">
+
+    <h2>🌬️ Hourly Weather Forecast</h2>
+
+    <div id="hourlyForecastTable">
+        Loading hourly forecast...
+    </div>
+
+</div>
 
 <div id="bottomForecastBar">
     <div class="forecast-label">▶</div>
@@ -429,14 +522,40 @@ L.control.layers(baseMaps).addTo(map);
 
         // Weather API
 const apiUrl =
-    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation`;
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation,weather_code`;
 
+    function getWeatherCondition(code) {
+
+    if (code === 0) {
+        return "☀️ Clear";
+    } else if (code <= 3) {
+        return "☁️ Cloudy";
+    } else if (code <= 48) {
+        return "🌫️ Fog";
+    } else if (code <= 57) {
+        return "🌦️ Drizzle";
+    } else if (code <= 67) {
+        return "🌧️ Rain";
+    } else if (code <= 77) {
+        return "❄️ Snow";
+    } else if (code <= 82) {
+        return "🌧️ Rain Showers";
+    } else if (code <= 86) {
+        return "❄️ Snow Showers";
+    } else {
+        return "⛈️ Thunderstorm";
+    }
+}
 
         // Get weather data
         fetch(apiUrl)
             .then(response => response.json())
 
             .then(data => {
+
+              const weatherCondition =
+    getWeatherCondition(data.current.weather_code);
+
                 createWeatherChart(data);
 
                
@@ -557,23 +676,14 @@ L.circle([latitude, longitude], {
         </div>
 
         <div style="margin: 6px 0;">
+    🌤️ Condition: ${getWeatherCondition(data.current.weather_code)}
+</div>
+
+        <div style="margin: 6px 0;">
             🌧️ Rain: ${data.current.precipitation} mm
         </div>
 
-        <button
-            onclick="document.getElementById('forecast').scrollIntoView({behavior:'smooth'})"
-            style="
-                margin-top: 10px;
-                width: 100%;
-                padding: 10px;
-                border: none;
-                border-radius: 6px;
-                background: #d9ebf7;
-                font-size: 15px;
-                cursor: pointer;
-            ">
-            Show forecast
-        </button>
+        
     </div>
 `)
 
@@ -750,14 +860,13 @@ function showWindGrid(centerLat, centerLon) {
                     color = "red";
                 }
 
-                L.circle(location, {
-                    radius: 6000,
-                    color: color,
-                    fillColor: color,
-                    fillOpacity: 0.30,
-                    weight: 1
-                })
-                .addTo(windLayer)
+               L.circle(location, {
+    radius: 10000,
+    stroke: false,
+    fillColor: color,
+    fillOpacity: 0.14
+})
+.addTo(windLayer)
                 .bindPopup(`
                     🌬️ Wind Speed: ${speed} km/h<br>
                     🧭 Direction: ${direction}°
@@ -790,7 +899,138 @@ function showWindGrid(centerLat, centerLon) {
 
 
 
+// 🌦️ Hourly Weather Forecast
+function loadHourlyForecast(lat, lon) {
 
+    const hourlyAPI =
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+        `&hourly=temperature_2m,precipitation,cloud_cover,wind_speed_10m,wind_direction_10m` +
+        `&forecast_days=2&timezone=auto`;
+
+    fetch(hourlyAPI)
+        .then(response => response.json())
+        .then(data => {
+
+            const times = data.hourly.time;
+            const temperatures = data.hourly.temperature_2m;
+            const rain = data.hourly.precipitation;
+            const clouds = data.hourly.cloud_cover;
+            const windSpeed = data.hourly.wind_speed_10m;
+            const windDirection = data.hourly.wind_direction_10m;
+
+            let table = `
+                <table class="hourly-table">
+
+                    <tr>
+                        <th>Time</th>
+            `;
+
+            // Show first 24 hours
+            for (let i = 0; i < 24; i++) {
+
+                const time = new Date(times[i]);
+
+                table += `
+                    <th>
+                        ${time.getHours().toString().padStart(2, "0")}:00
+                    </th>
+                `;
+            }
+
+            table += `</tr>`;
+
+            // 🌬️ Wind direction row
+            table += `
+                <tr>
+                    <td>Wind</td>
+            `;
+
+            for (let i = 0; i < 24; i++) {
+
+                table += `
+                    <td class="wind-row"
+                        style="transform: rotate(${windDirection[i]}deg);">
+                        ↑
+                    </td>
+                `;
+            }
+
+            table += `</tr>`;
+
+            // 🌬️ Wind speed
+            table += `
+                <tr>
+                    <td>km/h</td>
+            `;
+
+            for (let i = 0; i < 24; i++) {
+
+                table += `
+                    <td>${windSpeed[i]}</td>
+                `;
+            }
+
+            table += `</tr>`;
+
+            // 🌡️ Temperature
+            table += `
+                <tr>
+                    <td>°C</td>
+            `;
+
+            for (let i = 0; i < 24; i++) {
+
+                table += `
+                    <td>${temperatures[i]}</td>
+                `;
+            }
+
+            table += `</tr>`;
+
+            // 🌧️ Rain
+            table += `
+                <tr>
+                    <td>Rain mm</td>
+            `;
+
+            for (let i = 0; i < 24; i++) {
+
+                table += `
+                    <td>${rain[i]}</td>
+                `;
+            }
+
+            table += `</tr>`;
+
+            // ☁️ Cloud
+            table += `
+                <tr>
+                    <td>Cloud %</td>
+            `;
+
+            for (let i = 0; i < 24; i++) {
+
+                table += `
+                    <td>${clouds[i]}</td>
+                `;
+            }
+
+            table += `
+                    </tr>
+                </table>
+            `;
+
+            document.getElementById("hourlyForecastTable").innerHTML = table;
+
+        })
+        .catch(error => {
+
+            console.log("Hourly forecast error:", error);
+
+            document.getElementById("hourlyForecastTable").innerHTML =
+                "Hourly forecast unavailable.";
+        });
+}
 
 
 // Initially show Erode wind grid
@@ -798,6 +1038,8 @@ showWindGrid(latitude, longitude);
 
 // Initially show Erode rain grid
 showRainGrid(latitude, longitude);
+
+loadHourlyForecast(latitude, longitude);
 
 // Rain Legend
 const legend = L.control({ position:  "topright" });
@@ -858,11 +1100,13 @@ function searchLocation() {
 showWindGrid(lat, lon);
 
 const searchedWeatherAPI =
-    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation`;
-
+    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m,precipitation,weather_code`;
 fetch(searchedWeatherAPI)
     .then(response => response.json())
     .then(weather => {
+
+        const weatherCondition =
+    getWeatherCondition(weather.current.weather_code);
 
        L.marker([lat, lon])
     .addTo(map)
@@ -891,6 +1135,10 @@ fetch(searchedWeatherAPI)
             <div style="margin: 6px 0;">
                 🌡️ Temperature: ${weather.current.temperature_2m} °C
             </div>
+
+             <div style="margin: 6px 0;">
+    🌤️ Condition: ${getWeatherCondition(weather.current.weather_code)}
+</div>
 
             <div style="margin: 6px 0;">
                 🌧️ Rain: ${weather.current.precipitation} mm
